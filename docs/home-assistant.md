@@ -10,6 +10,9 @@ Everything here is done in the Home Assistant UI; nothing needs a firmware rebui
 | **Garage state source** (select) | `Assumed` (last command) or `Home Assistant` (the helper below). |
 | **Shutter key** (text, config) | Write-only box for the shutter key. |
 | **Shutter key status** (diagnostic) | Where the key came from and its fingerprint, never the key itself. |
+| **Shutter address** (text, config) | The shutter being controlled, or `auto` while searching. Type a MAC to choose one. |
+| **Find shutter** (button, config) | Forget the chosen shutter and search again. |
+| **Nearby shutters** (diagnostic) | SSCs shutters heard recently, with signal strength. |
 | **Garage BLE status** (diagnostic) | Result of the last command, e.g. `up: acknowledged`, `down: shutter not found`. |
 
 ## Choosing which sensor gives open/closed
@@ -52,6 +55,20 @@ with options `Zigbee` and `Vision`, then:
 Returning `none` when the real sensor is unavailable keeps the template from claiming "closed"
 when it simply doesn't know. The device then keeps its last known state. Until the helper
 exists or reports, the cover behaves as if `Assumed` were selected.
+
+## Choosing the shutter
+
+Nothing is compiled in. The device listens for Bluetooth adverts named `SSCs…` (or `SSCg…`):
+
+- **One shutter nearby:** it is selected automatically about 10 seconds after boot (or after
+  **Find shutter**), and remembered. Pressing a cover button before then also picks it.
+- **Several nearby:** **Nearby shutters** lists them, e.g.
+  `AA:BB:CC:DD:EE:FF SSCs… -58 dBm (selected)`. Copy the address you want into
+  **Shutter address**. The strongest signal is usually yours.
+- **Start over:** press **Find shutter**, or type `auto` into **Shutter address**.
+
+The choice is stored on the device and survives reboots. It can't be changed while a command is
+in progress. An optional `mac_address:` in the YAML is used only when nothing has been chosen.
 
 ## Entering the shutter key
 

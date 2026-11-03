@@ -17,6 +17,7 @@ notes are in [docs/history/](docs/history/).
 | Token logged at INFO | Keys and tokens never logged |
 | Failures only in the log | `Garage BLE status` text sensor; cover reverts if a command was never delivered |
 | Optimistic cover only | Selectable state source (assumed, Zigbee contact, future sensors) |
+| MAC address compiled in | Shutter found by name, auto-selected or chosen from HA |
 | Secrets inline in YAML | `!secret`, or enter the key from HA (hex or setup QR text) |
 
 ## Layout
@@ -45,7 +46,7 @@ docs/                      protocol, Home Assistant setup, history
 
 It is the same physical device, so the new YAML replaces `sscs-atom-s3.yaml` there.
 
-## Choosing the state sensor and entering the key
+## Choosing the shutter, the state sensor, and entering the key
 
 Both are done in the Home Assistant UI; see [docs/home-assistant.md](docs/home-assistant.md).
 
@@ -55,6 +56,9 @@ Both are done in the Home Assistant UI; see [docs/home-assistant.md](docs/home-a
   no firmware rebuild. The **Garage state source** select switches between that and `Assumed`.
   The cover stays `assumed_state` so HA keeps both buttons enabled, and `travel_time` is how
   long it shows opening/closing.
+- **Shutter:** found by its `SSCs` Bluetooth name. The only one nearby is picked
+  automatically; with several, choose from **Nearby shutters** via **Shutter address**.
+  **Find shutter** starts the search again.
 - **Key:** the **Shutter key** box accepts the 64-hex key or the text of the setup QR code
   (`R1…`). It is stored on the device, never sent back to HA, and identified by a fingerprint
   in **Shutter key status**. A key entered here wins over one in the YAML.

@@ -6,10 +6,6 @@
 # The device name and api key match the current install so Home Assistant keeps
 # cover.sscs_atom_s3_garage_shutter and does not see a new device.
 
-substitutions:
-  # Historically observed address of the shutter controller.
-  shutter_mac: "AA:BB:CC:DD:EE:FF"
-
 esphome:
   name: sscs_atom_s3
   comment: SSCs garage shutter BLE controller
@@ -47,12 +43,10 @@ external_components:
 
 esp32_ble_tracker:
 
-ble_client:
-  - id: shutter_ble
-    mac_address: ${shutter_mac}
-
 sscs_garage:
-  ble_client_id: shutter_ble
+  # The shutter is found by its "SSCs" name: the only one nearby is picked
+  # automatically, or choose one from Home Assistant (Shutter address below).
+  # mac_address: AA:BB:CC:DD:EE:FF   # optional fixed default
   # Optional. 64 hex chars or the QR text from the setup sheet. A key entered in
   # Home Assistant (Shutter key below) is stored on the device and wins over this.
   key: !secret garage_ble_key
@@ -61,6 +55,12 @@ sscs_garage:
     name: Shutter key
   key_status:
     name: Shutter key status
+  device_input:
+    name: Shutter address
+  find_button:
+    name: Find shutter
+  nearby:
+    name: Nearby shutters
   status:
     name: Garage BLE status
 

@@ -4,13 +4,21 @@ import re
 
 from esphome import automation
 import esphome.codegen as cg
-from esphome.components import ble_client, text, text_sensor
+from esphome.components import (
+    button,
+    esp32_ble,
+    esp32_ble_client,
+    esp32_ble_tracker,
+    text,
+    text_sensor,
+)
+from esphome.components.esp32_ble import BTLoggers
 import esphome.config_validation as cv
-from esphome.const import CONF_ID, CONF_STATUS
+from esphome.const import CONF_ID, CONF_MAC_ADDRESS, CONF_STATUS
 
 CODEOWNERS = ["@anthony"]
-DEPENDENCIES = ["ble_client"]
-AUTO_LOAD = ["text", "text_sensor"]
+DEPENDENCIES = ["esp32_ble_tracker"]
+AUTO_LOAD = ["esp32_ble_client", "button", "text", "text_sensor"]
 MULTI_CONF = True
 
 CONF_SSCS_GARAGE_ID = "sscs_garage_id"
@@ -24,11 +32,14 @@ CONF_ACK_TIMEOUT = "ack_timeout"
 CONF_COMMAND = "command"
 CONF_KEY_INPUT = "key_input"
 CONF_KEY_STATUS = "key_status"
+CONF_NAME_PREFIXES = "name_prefixes"
+CONF_AUTO_SELECT_WINDOW = "auto_select_window"
+CONF_DEVICE_INPUT = "device_input"
+CONF_FIND_BUTTON = "find_button"
+CONF_NEARBY = "nearby"
 
 sscs_garage_ns = cg.esphome_ns.namespace("sscs_garage")
-SSCSGarage = sscs_garage_ns.class_(
-    "SSCSGarage", cg.Component, ble_client.BLEClientNode
-)
+SSCSGarage = sscs_garage_ns.class_("SSCSGarage", esp32_ble_client.BLEClientBase)
 Command = sscs_garage_ns.namespace("protocol").enum("Command", is_class=True)
 COMMANDS = {
     "up": Command.UP,
@@ -39,6 +50,8 @@ COMMANDS = {
 }
 SendAction = sscs_garage_ns.class_("SendAction", automation.Action)
 KeyText = sscs_garage_ns.class_("KeyText", text.Text, cg.Component)
+DeviceText = sscs_garage_ns.class_("DeviceText", text.Text, cg.Component)
+FindButton = sscs_garage_ns.class_("FindButton", button.Button)
 
 
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -88,6 +101,29 @@ CONFIG_SCHEMA = cv.All(
                 icon="mdi:key-chain",
                 entity_category="diagnostic",
             ),
+            # Optional: without it the shutter is found by name and can be chosen from HA.
+            cv.Optional(CONF_MAC_ADDRESS): cv.mac_address,
+            cv.Optional(CONF_NAME_PREFIXES, default=["SSCs", "SSCg"]): cv.All(
+                cv.ensure_list(cv.string_strict), cv.Length(min=1, max=4)
+            ),
+            cv.Optional(
+                CONF_AUTO_SELECT_WINDOW, default="10s"
+            ): cv.positive_time_period_milliseconds,
+            cv.Optional(CONF_DEVICE_INPUT): text.text_schema(
+                DeviceText,
+                icon="mdi:bluetooth-settings",
+                entity_category="config",
+                mode="TEXT",
+            ).extend(cv.COMPONENT_SCHEMA),
+            cv.Optional(CONF_FIND_BUTTON): button.button_schema(
+                FindButton,
+                icon="mdi:bluetooth-audio",
+                entity_category="config",
+            ),
+            cv.Optional(CONF_NEARBY): text_sensor.text_sensor_schema(
+                icon="mdi:access-point",
+                entity_category="diagnostic",
+            ),
             cv.Optional(CONF_PASSCODE, default=-1): cv.int_range(
                 min=-1, max=0xFFFFFFFF
             ),
@@ -112,7 +148,7 @@ CONFIG_SCHEMA = cv.All(
             ),
         }
     )
-    .extend(ble_client.BLE_CLIENT_SCHEMA)
+    .extend(esp32_ble_tracker.ESP_BLE_DEVICE_SCHEMA)
     .extend(cv.COMPONENT_SCHEMA),
     cv.has_at_least_one_key(CONF_KEY, CONF_KEY_INPUT),
 )
@@ -121,7 +157,14 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
-    await ble_client.register_ble_node(var, config)
+    await esp32_ble_tracker.register_client(var, config)
+    esp32_ble.register_bt_logger(BTLoggers.GATT, BTLoggers.SMP)
+
+    if (mac := config.get(CONF_MAC_ADDRESS)) is not None:
+        cg.add(var.set_config_address(mac.as_hex))
+    for prefix in config[CONF_NAME_PREFIXES]:
+        cg.add(var.add_name_prefix(prefix))
+    cg.add(var.set_auto_select_window(config[CONF_AUTO_SELECT_WINDOW]))
 
     if (key_hex := config.get(CONF_KEY)) is not None:
         cg.add(var.set_key(cg.ArrayInitializer(*bytes.fromhex(key_hex))))
@@ -143,6 +186,17 @@ async def to_code(config):
         key_text = await text.new_text(key_input_config, min_length=0, max_length=128)
         await cg.register_component(key_text, key_input_config)
         await cg.register_parented(key_text, var)
+    if nearby_config := config.get(CONF_NEARBY):
+        sens = await text_sensor.new_text_sensor(nearby_config)
+        cg.add(var.set_nearby_text_sensor(sens))
+    if device_input_config := config.get(CONF_DEVICE_INPUT):
+        device_text = await text.new_text(device_input_config, min_length=0, max_length=32)
+        await cg.register_component(device_text, device_input_config)
+        await cg.register_parented(device_text, var)
+        cg.add(var.set_device_text(device_text))
+    if find_config := config.get(CONF_FIND_BUTTON):
+        find = await button.new_button(find_config)
+        await cg.register_parented(find, var)
 
 
 @automation.register_action(
