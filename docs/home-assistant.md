@@ -12,7 +12,8 @@ Everything here is done in the Home Assistant UI; nothing needs a firmware rebui
 | **Shutter key status** (diagnostic) | Where the key came from and its fingerprint, never the key itself. |
 | **Shutter address** (text, config) | The shutter being controlled, or `auto` while searching. Type a MAC to choose one. |
 | **Find shutter** (button, config) | Forget the chosen shutter and search again. |
-| **Nearby shutters** (diagnostic) | SSCs shutters heard during the last search, with signal strength. |
+| **Nearby shutters** (diagnostic) | SSCs shutters heard during the last search (or live with **Always scan**), with signal strength. |
+| **Always scan** (switch, config) | Off: scan only while searching or sending a command. On: scan all the time. |
 | **Garage BLE status** (diagnostic) | Result of the last command, e.g. `up: acknowledged`, `down: shutter not found`. |
 
 ## Choosing which sensor gives open/closed
@@ -68,8 +69,9 @@ Nothing is compiled in. The device listens for Bluetooth adverts named `SSCs…`
 - **Start over:** press **Find shutter**, or type `auto` into **Shutter address**.
 
 Once a shutter is chosen the device stops scanning for Bluetooth adverts. It only scans
-again for the few seconds a command needs to find the shutter, or after **Find shutter**.
-**Nearby shutters** keeps the list from the last search.
+again for the moment a command needs to hear the shutter, or after **Find shutter**.
+**Nearby shutters** keeps the list from the last search. Turn on **Always scan** to keep
+listening all the time (live nearby list, same command speed); the setting is remembered.
 
 The choice is stored on the device and survives reboots. It can't be changed while a command is
 in progress. An optional `mac_address:` in the YAML is used only when nothing has been chosen.

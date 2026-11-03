@@ -16,6 +16,9 @@
 #ifdef USE_BUTTON
 #include "esphome/components/button/button.h"
 #endif
+#ifdef USE_SWITCH
+#include "esphome/components/switch/switch.h"
+#endif
 
 #include <array>
 
@@ -58,9 +61,10 @@ class DeviceText;
  * for the SSCs name, auto-selects the only one nearby, and lets Home Assistant
  * pick a specific one. The choice is stored on the device.
  *
- * With scan_on_demand (the default) the component owns the BLE scanner: it scans
- * only while searching for a shutter and while a command waits for the shutter's
- * advertisement, and keeps the radio quiet otherwise.
+ * The component owns the BLE scanner. By default it scans only while searching for
+ * a shutter and while a command waits for the shutter's advertisement; with
+ * always_scan (the "Always scan" switch) it scans all the time and keeps the
+ * nearby list current.
  */
 class SSCSGarage : public esp32_ble_client::BLEClientBase {
  public:
@@ -99,7 +103,8 @@ class SSCSGarage : public esp32_ble_client::BLEClientBase {
   /// A MAC address ("AA:BB:CC:DD:EE:FF"), or "auto"/empty to forget the choice and search again.
   bool set_device_from_text(const std::string &value);
   void set_auto_select_window(uint32_t ms) { this->auto_select_window_ = ms; }
-  void set_scan_on_demand(bool on_demand) { this->scan_on_demand_ = on_demand; }
+  /// Scan all the time instead of only when needed.
+  void set_always_scan(bool always_scan);
 
   void set_passcode(int64_t passcode) { this->passcode_ = passcode; }
   void set_connect_timeout(uint32_t ms) { this->connect_timeout_ = ms; }
@@ -178,8 +183,10 @@ class SSCSGarage : public esp32_ble_client::BLEClientBase {
   void maintain_candidates_();
   void publish_device_();
   void publish_nearby_();
-  /// Searching = no shutter chosen yet; only then are adverts collected as candidates.
+  /// Searching = no shutter chosen yet; only then can one be auto-selected.
   bool searching_() const { return !this->has_device_(); }
+  /// Collect adverts into the nearby list: while searching, or always when scanning all the time.
+  bool tracking_() const { return this->searching_() || this->always_scan_; }
   /// Start or stop the tracker's scan to match what is needed right now.
   void update_scanning_();
   bool has_device_() const { return this->device_source_ != DeviceSource::DEVICE_SOURCE_NONE; }
@@ -205,7 +212,7 @@ class SSCSGarage : public esp32_ble_client::BLEClientBase {
   uint32_t search_started_{0};
   uint32_t auto_select_window_{10000};
   uint32_t last_nearby_publish_{0};
-  bool scan_on_demand_{true};
+  bool always_scan_{false};
 
   // ---- timing
   uint32_t connect_timeout_{20000};
@@ -259,6 +266,17 @@ class DeviceText : public text::Text, public Component, public Parented<SSCSGara
 class FindButton : public button::Button, public Parented<SSCSGarage> {
  protected:
   void press_action() override;
+};
+#endif
+
+#ifdef USE_SWITCH
+/// On: scan for shutters all the time. Off: only while searching or sending a command.
+class ScanSwitch : public switch_::Switch, public Component, public Parented<SSCSGarage> {
+ public:
+  void setup() override;
+
+ protected:
+  void write_state(bool state) override;
 };
 #endif
 

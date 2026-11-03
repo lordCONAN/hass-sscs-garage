@@ -9,6 +9,7 @@ from esphome.components import (
     esp32_ble,
     esp32_ble_client,
     esp32_ble_tracker,
+    switch,
     text,
     text_sensor,
 )
@@ -18,7 +19,7 @@ from esphome.const import CONF_ID, CONF_MAC_ADDRESS, CONF_STATUS
 
 CODEOWNERS = ["@anthony"]
 DEPENDENCIES = ["esp32_ble_tracker"]
-AUTO_LOAD = ["esp32_ble_client", "button", "text", "text_sensor"]
+AUTO_LOAD = ["esp32_ble_client", "button", "switch", "text", "text_sensor"]
 MULTI_CONF = True
 
 CONF_SSCS_GARAGE_ID = "sscs_garage_id"
@@ -37,7 +38,7 @@ CONF_AUTO_SELECT_WINDOW = "auto_select_window"
 CONF_DEVICE_INPUT = "device_input"
 CONF_FIND_BUTTON = "find_button"
 CONF_NEARBY = "nearby"
-CONF_SCAN_ON_DEMAND = "scan_on_demand"
+CONF_SCAN_SWITCH = "scan_switch"
 
 sscs_garage_ns = cg.esphome_ns.namespace("sscs_garage")
 SSCSGarage = sscs_garage_ns.class_("SSCSGarage", esp32_ble_client.BLEClientBase)
@@ -53,6 +54,7 @@ SendAction = sscs_garage_ns.class_("SendAction", automation.Action)
 KeyText = sscs_garage_ns.class_("KeyText", text.Text, cg.Component)
 DeviceText = sscs_garage_ns.class_("DeviceText", text.Text, cg.Component)
 FindButton = sscs_garage_ns.class_("FindButton", button.Button)
+ScanSwitch = sscs_garage_ns.class_("ScanSwitch", switch.Switch, cg.Component)
 
 
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -125,7 +127,13 @@ CONFIG_SCHEMA = cv.All(
                 icon="mdi:access-point",
                 entity_category="diagnostic",
             ),
-            cv.Optional(CONF_SCAN_ON_DEMAND, default=True): cv.boolean,
+            # Off (default): scan only while searching or connecting. On: always scan.
+            cv.Optional(CONF_SCAN_SWITCH): switch.switch_schema(
+                ScanSwitch,
+                entity_category="config",
+                icon="mdi:radar",
+                default_restore_mode="RESTORE_DEFAULT_OFF",
+            ).extend(cv.COMPONENT_SCHEMA),
             cv.Optional(CONF_PASSCODE, default=-1): cv.int_range(
                 min=-1, max=0xFFFFFFFF
             ),
@@ -167,7 +175,6 @@ async def to_code(config):
     for prefix in config[CONF_NAME_PREFIXES]:
         cg.add(var.add_name_prefix(prefix))
     cg.add(var.set_auto_select_window(config[CONF_AUTO_SELECT_WINDOW]))
-    cg.add(var.set_scan_on_demand(config[CONF_SCAN_ON_DEMAND]))
 
     if (key_hex := config.get(CONF_KEY)) is not None:
         cg.add(var.set_key(cg.ArrayInitializer(*bytes.fromhex(key_hex))))
@@ -200,6 +207,10 @@ async def to_code(config):
     if find_config := config.get(CONF_FIND_BUTTON):
         find = await button.new_button(find_config)
         await cg.register_parented(find, var)
+    if scan_config := config.get(CONF_SCAN_SWITCH):
+        scan = await switch.new_switch(scan_config)
+        await cg.register_component(scan, scan_config)
+        await cg.register_parented(scan, var)
 
 
 @automation.register_action(

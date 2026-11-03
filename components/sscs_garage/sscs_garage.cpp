@@ -350,9 +350,9 @@ void SSCSGarage::track_candidate_(const espbt::ESPBTDevice &device) {
 
 void SSCSGarage::update_scanning_() {
   auto *tracker = espbt::global_esp32_ble_tracker;
-  if (!this->scan_on_demand_ || tracker == nullptr)
+  if (tracker == nullptr)
     return;
-  const bool wanted = this->searching_() || this->phase_ == Phase::CONNECTING;
+  const bool wanted = this->always_scan_ || this->searching_() || this->phase_ == Phase::CONNECTING;
   tracker->set_scan_continuous(wanted);
   if (!esp32_ble::global_ble->is_active())
     return;  // the tracker starts (or skips) its first scan itself
@@ -366,11 +366,20 @@ void SSCSGarage::update_scanning_() {
   }
 }
 
+void SSCSGarage::set_always_scan(bool always_scan) {
+  if (always_scan == this->always_scan_)
+    return;
+  this->always_scan_ = always_scan;
+  ESP_LOGI(TAG, "Scanning %s", always_scan ? "all the time" : "only when needed");
+  this->publish_nearby_();
+  this->update_scanning_();
+}
+
 void SSCSGarage::maintain_candidates_() {
   // Also catches a scan that was still starting when it was last told to stop, or one
   // restarted after an aborted OTA.
   this->update_scanning_();
-  if (!this->searching_())
+  if (!this->tracking_())
     return;
 
   const uint32_t now = millis();
@@ -384,7 +393,7 @@ void SSCSGarage::maintain_candidates_() {
   }
 
   // With nothing chosen, take the only shutter heard during the search window.
-  if (!this->is_busy() && this->candidate_count_ == 1 &&
+  if (this->searching_() && !this->is_busy() && this->candidate_count_ == 1 &&
       now - this->search_started_ >= this->auto_select_window_) {
     ESP_LOGI(TAG, "Only one shutter nearby, selecting it");
     this->select_device_(this->candidates_[0].address, true);
@@ -415,7 +424,7 @@ void SSCSGarage::publish_nearby_() {
   if (this->nearby_sensor_ == nullptr)
     return;
   if (this->candidate_count_ == 0) {
-    this->nearby_sensor_->publish_state(this->searching_() ? "Searching" : "Not searching");
+    this->nearby_sensor_->publish_state(this->tracking_() ? "Searching" : "Not searching");
     return;
   }
   char buf[MAX_CANDIDATES * 56];
@@ -435,7 +444,7 @@ void SSCSGarage::publish_nearby_() {
 bool SSCSGarage::parse_device(const espbt::ESPBTDevice &device) {
   bool ours = false;
   if (this->matches_name_(device)) {
-    if (this->searching_())
+    if (this->tracking_())
       this->track_candidate_(device);
     ours = true;
   }
@@ -753,6 +762,18 @@ void DeviceText::control(const std::string &value) {
 
 #ifdef USE_BUTTON
 void FindButton::press_action() { this->parent_->set_device_from_text("auto"); }
+#endif
+
+#ifdef USE_SWITCH
+void ScanSwitch::setup() {
+  const bool state = this->get_initial_state_with_restore_mode().value_or(false);
+  this->write_state(state);
+}
+
+void ScanSwitch::write_state(bool state) {
+  this->parent_->set_always_scan(state);
+  this->publish_state(state);
+}
 #endif
 
 }  // namespace esphome::sscs_garage
