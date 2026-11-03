@@ -44,6 +44,9 @@ external_components:
       path: components
     components: [sscs_garage]
 
+# Scanning is switched on and off by sscs_garage (scan_on_demand): only while it
+# searches for a shutter or a command is connecting. Set scan_on_demand: false
+# under sscs_garage if something else here (e.g. bluetooth_proxy) needs the scanner.
 esp32_ble_tracker:
 
 sscs_garage:

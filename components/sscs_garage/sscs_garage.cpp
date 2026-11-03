@@ -2,6 +2,7 @@
 
 #ifdef USE_ESP32
 
+#include "esphome/components/esp32_ble/ble.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
@@ -103,6 +104,9 @@ void SSCSGarage::setup() {
   this->load_device_();
   this->search_started_ = millis();
   this->set_interval(SCAN_INTERVAL, SCAN_MAINTENANCE_MS, [this]() { this->maintain_candidates_(); });
+  // BLE is not up yet: this only sets whether the tracker's first scan after boot runs.
+  this->update_scanning_();
+  this->publish_nearby_();
   this->publish_status_("Idle");
 }
 
@@ -253,7 +257,8 @@ void SSCSGarage::select_device_(uint64_t address, bool store) {
   format_address(address, addr);
   ESP_LOGI(TAG, "Shutter selected: %s", addr);
   this->publish_device_();
-  this->candidates_changed_ = true;  // the "selected" marker in the nearby list moved
+  this->publish_nearby_();  // freeze the list with the "selected" marker
+  this->update_scanning_();
 }
 
 void SSCSGarage::forget_device_() {
@@ -268,9 +273,11 @@ void SSCSGarage::forget_device_() {
   this->device_source_ = DeviceSource::DEVICE_SOURCE_NONE;
   this->set_address(0);
   this->search_started_ = millis();
+  this->candidate_count_ = 0;  // only shutters heard during this search can be auto-selected
   ESP_LOGI(TAG, "Shutter choice cleared, searching");
   this->publish_device_();
-  this->candidates_changed_ = true;
+  this->publish_nearby_();
+  this->update_scanning_();
 }
 
 bool SSCSGarage::set_device_from_text(const std::string &value) {
@@ -341,7 +348,31 @@ void SSCSGarage::track_candidate_(const espbt::ESPBTDevice &device) {
   slot->rssi = static_cast<int8_t>(device.get_rssi());
 }
 
+void SSCSGarage::update_scanning_() {
+  auto *tracker = espbt::global_esp32_ble_tracker;
+  if (!this->scan_on_demand_ || tracker == nullptr)
+    return;
+  const bool wanted = this->searching_() || this->phase_ == Phase::CONNECTING;
+  tracker->set_scan_continuous(wanted);
+  if (!esp32_ble::global_ble->is_active())
+    return;  // the tracker starts (or skips) its first scan itself
+  if (wanted) {
+    // Never start a scan while our own link is being set up; the tracker restarts it afterwards.
+    if (this->state() == espbt::ClientState::IDLE)
+      tracker->start_scan_if_idle();
+  } else if (tracker->scan_running()) {
+    ESP_LOGD(TAG, "Shutter selected and idle, stopping BLE scan");
+    tracker->stop_scan();
+  }
+}
+
 void SSCSGarage::maintain_candidates_() {
+  // Also catches a scan that was still starting when it was last told to stop, or one
+  // restarted after an aborted OTA.
+  this->update_scanning_();
+  if (!this->searching_())
+    return;
+
   const uint32_t now = millis();
   for (uint8_t i = 0; i < this->candidate_count_;) {
     if (now - this->candidates_[i].last_seen > CANDIDATE_EXPIRY_MS) {
@@ -353,7 +384,7 @@ void SSCSGarage::maintain_candidates_() {
   }
 
   // With nothing chosen, take the only shutter heard during the search window.
-  if (!this->has_device_() && !this->is_busy() && this->candidate_count_ == 1 &&
+  if (!this->is_busy() && this->candidate_count_ == 1 &&
       now - this->search_started_ >= this->auto_select_window_) {
     ESP_LOGI(TAG, "Only one shutter nearby, selecting it");
     this->select_device_(this->candidates_[0].address, true);
@@ -384,7 +415,7 @@ void SSCSGarage::publish_nearby_() {
   if (this->nearby_sensor_ == nullptr)
     return;
   if (this->candidate_count_ == 0) {
-    this->nearby_sensor_->publish_state("None heard");
+    this->nearby_sensor_->publish_state(this->searching_() ? "Searching" : "Not searching");
     return;
   }
   char buf[MAX_CANDIDATES * 56];
@@ -404,7 +435,8 @@ void SSCSGarage::publish_nearby_() {
 bool SSCSGarage::parse_device(const espbt::ESPBTDevice &device) {
   bool ours = false;
   if (this->matches_name_(device)) {
-    this->track_candidate_(device);
+    if (this->searching_())
+      this->track_candidate_(device);
     ours = true;
   }
   // Only let the base class start a connection while a command is waiting for one.
@@ -470,8 +502,11 @@ void SSCSGarage::finish_(Result result) {
   }
   this->cancel_timeout(PHASE_TIMEOUT);
   this->cancel_timeout(NUDGE_TIMEOUT);
+  const bool was_connecting = this->phase_ == Phase::CONNECTING;
   this->phase_ = Phase::IDLE;
   this->end_link_();
+  if (was_connecting)
+    this->update_scanning_();
 
   char buf[64];
   snprintf(buf, sizeof(buf), "%s: %s", command_to_string(cmd), result_to_string(result));
@@ -492,7 +527,10 @@ void SSCSGarage::end_link_() {
 }
 
 void SSCSGarage::enter_(Phase phase, uint32_t timeout_ms) {
+  const bool was_connecting = this->phase_ == Phase::CONNECTING;
   this->phase_ = phase;
+  if (was_connecting != (phase == Phase::CONNECTING))
+    this->update_scanning_();
   // Same name replaces the previous phase's timer.
   this->set_timeout(PHASE_TIMEOUT, timeout_ms, [this]() { this->on_phase_timeout_(); });
 }

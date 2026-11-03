@@ -37,6 +37,7 @@ CONF_AUTO_SELECT_WINDOW = "auto_select_window"
 CONF_DEVICE_INPUT = "device_input"
 CONF_FIND_BUTTON = "find_button"
 CONF_NEARBY = "nearby"
+CONF_SCAN_ON_DEMAND = "scan_on_demand"
 
 sscs_garage_ns = cg.esphome_ns.namespace("sscs_garage")
 SSCSGarage = sscs_garage_ns.class_("SSCSGarage", esp32_ble_client.BLEClientBase)
@@ -124,6 +125,7 @@ CONFIG_SCHEMA = cv.All(
                 icon="mdi:access-point",
                 entity_category="diagnostic",
             ),
+            cv.Optional(CONF_SCAN_ON_DEMAND, default=True): cv.boolean,
             cv.Optional(CONF_PASSCODE, default=-1): cv.int_range(
                 min=-1, max=0xFFFFFFFF
             ),
@@ -165,6 +167,7 @@ async def to_code(config):
     for prefix in config[CONF_NAME_PREFIXES]:
         cg.add(var.add_name_prefix(prefix))
     cg.add(var.set_auto_select_window(config[CONF_AUTO_SELECT_WINDOW]))
+    cg.add(var.set_scan_on_demand(config[CONF_SCAN_ON_DEMAND]))
 
     if (key_hex := config.get(CONF_KEY)) is not None:
         cg.add(var.set_key(cg.ArrayInitializer(*bytes.fromhex(key_hex))))

@@ -16,7 +16,9 @@ are in `docs/protocol.md`; only the `passcode = -1` path is verified on hardware
 - `sscs_protocol.*`: pure functions, no ESPHome deps; host-tested in `tests/`.
 - `sscs_garage.*`: its own `esp32_ble_client::BLEClientBase` (no `ble_client:` block, no MAC
   in YAML). It tracks `SSCs` adverts, auto-selects a lone shutter or takes one chosen in HA
-  (stored in NVS), and only lets the base class connect while a command session waits. Phase
+  (stored in NVS), and only lets the base class connect while a command session waits.
+  With `scan_on_demand` (default) it owns the tracker's scan: on while searching (no shutter
+  chosen) or while a session is CONNECTING, off otherwise (`update_scanning_()`). Phase
   timeouts use the scheduler. Runs entirely on the main loop; one session per command.
 - Key and chosen shutter are stored in NVS; HA entities can set them but never read the key back.
 - `cover/`: cover with runtime-selectable state source (0 = assumed, 1..N = binary sensors)
