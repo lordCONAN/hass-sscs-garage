@@ -1,0 +1,96 @@
+# SSCs garage shutter controller — M5 Atom S3 Lite (ESP32-S3)
+#
+# Deploy: copy this file and the components/ folder into /config/esphome/ on
+# Home Assistant, add the keys from secrets.example.yaml to secrets.yaml there.
+#
+# The device name and api key match the current install so Home Assistant keeps
+# cover.sscs_atom_s3_garage_shutter and does not see a new device.
+
+substitutions:
+  # Historically observed address of the shutter controller.
+  shutter_mac: "AA:BB:CC:DD:EE:FF"
+
+esphome:
+  name: sscs_atom_s3
+  comment: SSCs garage shutter BLE controller
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+
+api:
+  encryption:
+    key: !secret sscs_api_key
+
+ota:
+  - platform: esphome
+    password: !secret sscs_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: SSCS Atom S3 Fallback
+    password: !secret sscs_fallback_ap_password
+
+captive_portal:
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [sscs_garage]
+
+esp32_ble_tracker:
+
+ble_client:
+  - id: shutter_ble
+    mac_address: ${shutter_mac}
+
+sscs_garage:
+  ble_client_id: shutter_ble
+  key: !secret garage_ble_key
+  # passcode: -1          # -1 = no passcode (the only verified mode)
+  status:
+    name: Garage BLE status
+
+# State inputs. Anything that ends up as a binary_sensor can be a state source:
+# an HA entity imported like this, a GPIO reed switch, or a future BLE/camera sensor.
+binary_sensor:
+  - platform: homeassistant
+    id: garage_contact_zigbee
+    entity_id: binary_sensor.garage_shutter_sensor_contact
+    internal: true
+
+  # Future: your BLE + camera "is it open?" sensor, once it exists in HA.
+  # - platform: homeassistant
+  #   id: garage_vision
+  #   entity_id: binary_sensor.garage_shutter_vision
+  #   internal: true
+
+cover:
+  - platform: sscs_garage
+    name: Garage Shutter
+    travel_time: 30s
+    state_sources:
+      - name: Zigbee contact
+        sensor: garage_contact_zigbee
+        open_when: "ON"
+      # - name: Vision
+      #   sensor: garage_vision
+    default_state_source: Zigbee contact
+    state_source_select:
+      name: Garage state source
+
+# Optional raw command buttons (they bypass the cover's state tracking).
+# button:
+#   - platform: template
+#     name: Garage stop (raw)
+#     entity_category: config
+#     on_press:
+#       - sscs_garage.send:
+#           command: stop

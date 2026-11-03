@@ -1,0 +1,19 @@
+# Secrets
+secrets.yaml
+*.secret
+.env
+
+# ESPHome / PlatformIO build output
+.esphome/
+.pioenvs/
+.piolibdeps/
+
+# Tests and tools
+tests/build/
+__pycache__/
+*.pyc
+
+# Captures and reverse-engineering material stay outside the repo
+*.pcapng
+*.apk
+*.log
