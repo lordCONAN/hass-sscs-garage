@@ -47,6 +47,27 @@ uint32_t challenge_flags(const uint8_t *packet20);
 // Only the NO_PASSCODE path has been verified on hardware.
 Token make_token(const Key &key, const uint8_t *packet20, int64_t passcode);
 
+enum class KeyParseResult : uint8_t {
+  KEY_PARSE_RESULT_OK,
+  KEY_PARSE_RESULT_EMPTY,
+  KEY_PARSE_RESULT_BAD_FORMAT,        // neither 64 hex chars nor a supported QR code
+  KEY_PARSE_RESULT_BAD_LENGTH,        // QR payload did not decode to 32 bytes
+  KEY_PARSE_RESULT_UNSUPPORTED_SLOT,  // R2..R4: needs an extra app-side transform we don't have
+  KEY_PARSE_RESULT_SHARE_CODE,        // "0..." encrypted share code from another phone
+};
+
+const char *key_parse_result_to_string(KeyParseResult result);
+
+/// Accepts the key as 64 hex characters (spaces, ':' and '-' ignored) or as the
+/// text of the setup QR code: "R1" or "MS" followed by Base58 (Bitcoin alphabet).
+KeyParseResult parse_key(const char *text, size_t len, Key &out);
+
+/// Standard Base58 decode. Returns the decoded length, or -1 on a bad character / overflow.
+int base58_decode(const char *text, size_t len, uint8_t *out, size_t out_size);
+
+/// First 4 bytes of SHA256(key) as 8 hex chars + NUL; safe to show to identify a key.
+void key_fingerprint(const Key &key, char out[9]);
+
 // SHA-256 of a || b. Implemented with mbedTLS on the device, OpenSSL in host tests.
 void sha256_concat(const uint8_t *a, size_t alen, const uint8_t *b, size_t blen, uint8_t out[32]);
 

@@ -25,6 +25,18 @@ def make_token20(key32: bytes, pkt20: bytes, passcode: int) -> bytes:
     return core16 + tail.to_bytes(4, "little")
 
 
+ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def b58encode(b: bytes) -> str:
+    n = int.from_bytes(b, "big")
+    out = ""
+    while n:
+        n, r = divmod(n, 58)
+        out = ALPHABET[r] + out
+    return "1" * (len(b) - len(b.lstrip(b"\0"))) + out
+
+
 def c_bytes(b: bytes) -> str:
     return "{" + ", ".join(f"0x{x:02x}" for x in b) + "}"
 
@@ -49,6 +61,22 @@ def main() -> None:
     print("static const Vector VECTORS[] = {")
     for key, pkt, pc, tok in cases:
         print(f"  {{{c_bytes(key)}, {c_bytes(pkt)}, {pc}LL, {c_bytes(tok)}}},")
+    print("};")
+
+    # Setup-QR text vectors: header + Base58(key). Include leading-zero keys.
+    qr = []
+    for i in range(8):
+        key = bytes(rng.randrange(256) for _ in range(32))
+        if i == 1:
+            key = b"\0" + key[1:]
+        if i == 2:
+            key = b"\0\0" + key[2:]
+        header = "R1" if i % 2 == 0 else "MS"
+        qr.append((header + b58encode(key), key))
+    print("struct QrVector { const char *text; uint8_t key[32]; };")
+    print("static const QrVector QR_VECTORS[] = {")
+    for text, key in qr:
+        print(f'  {{"{text}", {c_bytes(key)}}},')
     print("};")
 
 

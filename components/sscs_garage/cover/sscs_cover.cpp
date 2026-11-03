@@ -42,7 +42,7 @@ void SSCSCover::setup() {
 void SSCSCover::dump_config() {
   LOG_COVER("", "SSCs Garage Cover", this);
   ESP_LOGCONFIG(TAG, "  Travel time: %" PRIu32 " ms", this->travel_time_);
-  ESP_LOGCONFIG(TAG, "  State source %u: assumed from last command%s", 0, this->active_source_ == 0 ? " (active)" : "");
+  ESP_LOGCONFIG(TAG, "  State source 0: assumed from last command%s", this->active_source_ == 0 ? " (active)" : "");
   for (size_t i = 0; i < this->sources_.size(); i++) {
     ESP_LOGCONFIG(TAG, "  State source %u: '%s', open when %s%s", static_cast<unsigned>(i + 1),
                   this->sources_[i].sensor->get_name().c_str(), this->sources_[i].open_when_on ? "ON" : "OFF",
@@ -131,8 +131,6 @@ void SSCSCover::apply_source_state_() {
   if (this->using_assumed_())
     return;
   const auto &src = this->sources_[this->active_source_ - 1];
-  if (!src.sensor->has_state())
-    return;
   const bool open = src.sensor->state == src.open_when_on;
   this->position = open ? COVER_OPEN : COVER_CLOSED;
   // Reaching "closed" ends a close; "open" only means it left the closed end.

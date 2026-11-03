@@ -6,8 +6,11 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
+#include <cctype>
 #include <cinttypes>
 #include <cstdio>
+#include <cstring>
+#include <strings.h>
 
 namespace esphome::sscs_garage {
 
@@ -31,6 +34,8 @@ const char *result_to_string(Result result) {
       return "write rejected";
     case Result::DISCONNECTED:
       return "disconnected early";
+    case Result::NO_KEY:
+      return "no key set";
   }
   return "unknown";
 }
@@ -40,8 +45,115 @@ void SSCSGarage::setup() {
   // Keep it disabled between commands so the shutter stays free for the phone app.
   this->parent()->set_auto_connect(true);
   this->parent()->set_enabled(false);
+  this->load_key_();
   this->publish_status_("Idle");
 }
+
+// ---------------------------------------------------------------- key
+
+void SSCSGarage::load_key_() {
+  this->key_pref_ = global_preferences->make_preference<KeyRecord>(fnv1_hash("sscs_garage_key"), true);
+  KeyRecord record{};
+  if (this->key_pref_.load(&record) && record.magic == KEY_RECORD_MAGIC) {
+    std::memcpy(this->key_.data(), record.key, protocol::KEY_LEN);
+    this->key_source_ = KeySource::KEY_SOURCE_STORED;
+  } else if (this->has_config_key_) {
+    this->key_ = this->config_key_;
+    this->key_source_ = KeySource::KEY_SOURCE_CONFIG;
+  } else {
+    this->key_source_ = KeySource::KEY_SOURCE_NONE;
+  }
+  std::memset(&record, 0, sizeof(record));
+  this->publish_key_status_();
+}
+
+bool SSCSGarage::set_key_from_text(const std::string &value) {
+  size_t start = 0;
+  size_t end = value.size();
+  while (start < end && isspace(static_cast<unsigned char>(value[start])))
+    start++;
+  while (end > start && isspace(static_cast<unsigned char>(value[end - 1])))
+    end--;
+  const size_t len = end - start;
+  const char *text = value.c_str() + start;
+
+  KeyRecord record{};
+  if (len == 0 || (len == 5 && strncasecmp(text, "clear", 5) == 0)) {
+    record.magic = 0;
+    this->key_pref_.save(&record);
+    global_preferences->sync();
+    if (this->has_config_key_) {
+      this->key_ = this->config_key_;
+      this->key_source_ = KeySource::KEY_SOURCE_CONFIG;
+    } else {
+      this->key_.fill(0);
+      this->key_source_ = KeySource::KEY_SOURCE_NONE;
+    }
+    ESP_LOGI(TAG, "Stored key cleared");
+    this->publish_key_status_();
+    return true;
+  }
+
+  protocol::Key parsed{};
+  const auto result = protocol::parse_key(text, len, parsed);
+  if (result != protocol::KeyParseResult::KEY_PARSE_RESULT_OK) {
+    ESP_LOGW(TAG, "Key rejected: %s", protocol::key_parse_result_to_string(result));
+    this->publish_key_status_(protocol::key_parse_result_to_string(result));
+    return false;
+  }
+
+  record.magic = KEY_RECORD_MAGIC;
+  std::memcpy(record.key, parsed.data(), protocol::KEY_LEN);
+  const bool saved = this->key_pref_.save(&record) && global_preferences->sync();
+  std::memset(&record, 0, sizeof(record));
+  this->key_ = parsed;
+  parsed.fill(0);
+  this->key_source_ = KeySource::KEY_SOURCE_STORED;
+
+  char fp[9];
+  protocol::key_fingerprint(this->key_, fp);
+  ESP_LOGI(TAG, "Key updated (fingerprint %s)%s", fp, saved ? "" : ", but saving to flash failed");
+  this->publish_key_status_(saved ? nullptr : "saving to flash failed");
+  return true;
+}
+
+void SSCSGarage::publish_key_status_(const char *note) {
+#ifdef USE_TEXT_SENSOR
+  if (this->key_status_sensor_ == nullptr)
+    return;
+  char fp[9];
+  protocol::key_fingerprint(this->key_, fp);
+  char current[48];
+  switch (this->key_source_) {
+    case KeySource::KEY_SOURCE_STORED:
+      snprintf(current, sizeof(current), "Set from HA, fingerprint %s", fp);
+      break;
+    case KeySource::KEY_SOURCE_CONFIG:
+      snprintf(current, sizeof(current), "From YAML, fingerprint %s", fp);
+      break;
+    case KeySource::KEY_SOURCE_NONE:
+      snprintf(current, sizeof(current), "Not set");
+      break;
+  }
+  if (note == nullptr) {
+    this->key_status_sensor_->publish_state(current);
+    return;
+  }
+  char buf[160];
+  snprintf(buf, sizeof(buf), "%s (%s)", current, note);
+  this->key_status_sensor_->publish_state(buf);
+#endif
+}
+
+#ifdef USE_TEXT
+void KeyText::setup() { this->publish_state(""); }
+
+void KeyText::control(const std::string &value) {
+  this->parent_->set_key_from_text(value);
+  // Never echo the key back to Home Assistant.
+  this->publish_state("");
+}
+#endif
 
 void SSCSGarage::dump_config() {
   ESP_LOGCONFIG(TAG,
@@ -83,6 +195,10 @@ void SSCSGarage::send(Command cmd) {
 }
 
 void SSCSGarage::start_session_() {
+  if (this->key_source_ == KeySource::KEY_SOURCE_NONE) {
+    this->finish_(Result::NO_KEY);
+    return;
+  }
   ESP_LOGI(TAG, "Sending '%s'", command_to_string(this->current_));
   this->cmd_handle_ = 0;
   this->data_handle_ = 0;

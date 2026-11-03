@@ -59,7 +59,10 @@ class SSCSCover : public cover::Cover, public Component {
   void on_sensor_(uint8_t index);
   void on_result_(Command cmd, Result result);
   void apply_source_state_();
-  bool using_assumed_() const { return this->active_source_ == 0; }
+  /// Assumed state also covers a selected sensor that has not reported yet.
+  bool using_assumed_() const {
+    return this->active_source_ == 0 || !this->sources_[this->active_source_ - 1].sensor->has_state();
+  }
 
   SSCSGarage *hub_{nullptr};
   std::vector<StateSource> sources_;

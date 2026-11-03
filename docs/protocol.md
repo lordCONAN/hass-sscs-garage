@@ -61,6 +61,23 @@ Tail by passcode mode:
 `key32` is per-installation and comes from the app (`connect(byte[] key32, long passcode, …)`).
 Never log or commit it, and avoid logging tokens.
 
+## Setup QR code
+
+The sheet shipped with the shutter has a QR code that *is* the key (byte-mode QR, ASCII text),
+handled in the app by `frgQRcamera` → `Globals.add_garage`:
+
+```
+<2-char type header><Base58(32-byte key)>        Bitcoin alphabet (BRBase58Decode in libnative-lib.so)
+```
+
+| Header | Meaning (`SDSGbleConst.sscSGqrH_*`) | Key |
+| --- | --- | --- |
+| `R1` | remote, slot 1 (the ① on the sheet) | Base58 bytes used as-is. **Verified**: matches the working key |
+| `MS` | motor system | Base58 bytes used as-is (same code path; not seen in practice) |
+| `R2`–`R4` | remote slots 2–4 | bytes further transformed by native `RM8000upkeyDecode`; unknown |
+| `0…` | encrypted share code (38 bytes, mixed with a hash of `HashRandom`) | unsupported |
+| `MW`, `Z*`, `T*`, `C*` | window motor, Zigbee bridge, transponder, remocon | other devices |
+
 ## Open questions
 
 - What the controller does with a wrong token (disconnect? silence?). The firmware treats both as a failed session.

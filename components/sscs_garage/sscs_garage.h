@@ -5,9 +5,13 @@
 #include "esphome/components/ble_client/ble_client.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/preferences.h"
 
 #ifdef USE_TEXT_SENSOR
 #include "esphome/components/text_sensor/text_sensor.h"
+#endif
+#ifdef USE_TEXT
+#include "esphome/components/text/text.h"
 #endif
 
 #include "sscs_protocol.h"
@@ -26,6 +30,7 @@ enum class Result : uint8_t {
   NO_CHALLENGE,  // no 20-byte challenge after subscribing
   REJECTED,      // token or command write refused
   DISCONNECTED,  // link dropped before the command was written
+  NO_KEY,        // no key in the YAML and none entered from Home Assistant
 };
 
 const char *result_to_string(Result result);
@@ -59,7 +64,14 @@ class SSCSGarage : public Component, public ble_client::BLEClientNode {
     this->result_callbacks_.add(std::forward<F>(callback));
   }
 
-  void set_key(const protocol::Key &key) { this->key_ = key; }
+  /// Key from the YAML. A key entered from Home Assistant (stored on the device) takes precedence.
+  void set_key(const protocol::Key &key) {
+    this->config_key_ = key;
+    this->has_config_key_ = true;
+  }
+  /// Key typed or pasted in Home Assistant: hex, or the setup QR text. "clear" or empty
+  /// removes the stored key and falls back to the YAML key. Returns false if rejected.
+  bool set_key_from_text(const std::string &value);
   void set_passcode(int64_t passcode) { this->passcode_ = passcode; }
   void set_connect_timeout(uint32_t ms) { this->connect_timeout_ = ms; }
   void set_challenge_timeout(uint32_t ms) { this->challenge_timeout_ = ms; }
@@ -68,9 +80,22 @@ class SSCSGarage : public Component, public ble_client::BLEClientNode {
   void set_ack_timeout(uint32_t ms) { this->ack_timeout_ = ms; }
 #ifdef USE_TEXT_SENSOR
   void set_status_text_sensor(text_sensor::TextSensor *sensor) { this->status_sensor_ = sensor; }
+  void set_key_status_text_sensor(text_sensor::TextSensor *sensor) { this->key_status_sensor_ = sensor; }
 #endif
 
  protected:
+  /// Stored in NVS; magic distinguishes a stored key from an empty/cleared slot.
+  struct KeyRecord {
+    uint32_t magic;
+    uint8_t key[protocol::KEY_LEN];
+  } __attribute__((packed));
+  static constexpr uint32_t KEY_RECORD_MAGIC = 0x53534B31;  // "SSK1"
+
+  enum class KeySource : uint8_t { KEY_SOURCE_NONE, KEY_SOURCE_CONFIG, KEY_SOURCE_STORED };
+
+  void load_key_();
+  void publish_key_status_(const char *note = nullptr);
+
   enum class Phase : uint8_t {
     IDLE,
     CONNECTING,        // waiting for ble_client to find + connect + discover
@@ -93,6 +118,10 @@ class SSCSGarage : public Component, public ble_client::BLEClientNode {
   void publish_status_(const char *text);
 
   protocol::Key key_{};
+  protocol::Key config_key_{};
+  bool has_config_key_{false};
+  KeySource key_source_{KeySource::KEY_SOURCE_NONE};
+  ESPPreferenceObject key_pref_;
   int64_t passcode_{protocol::NO_PASSCODE};
 
   uint32_t connect_timeout_{20000};
@@ -121,8 +150,20 @@ class SSCSGarage : public Component, public ble_client::BLEClientNode {
   CallbackManager<void(Command, Result)> result_callbacks_{};
 #ifdef USE_TEXT_SENSOR
   text_sensor::TextSensor *status_sensor_{nullptr};
+  text_sensor::TextSensor *key_status_sensor_{nullptr};
 #endif
 };
+
+#ifdef USE_TEXT
+/// Write-only key input. The entered value is never published back: the state stays empty.
+class KeyText : public text::Text, public Component, public Parented<SSCSGarage> {
+ public:
+  void setup() override;
+
+ protected:
+  void control(const std::string &value) override;
+};
+#endif
 
 }  // namespace esphome::sscs_garage
 

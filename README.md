@@ -17,7 +17,7 @@ notes are in [docs/history/](docs/history/).
 | Token logged at INFO | Keys and tokens never logged |
 | Failures only in the log | `Garage BLE status` text sensor; cover reverts if a command was never delivered |
 | Optimistic cover only | Selectable state source (assumed, Zigbee contact, future sensors) |
-| Secrets inline in YAML | `!secret` |
+| Secrets inline in YAML | `!secret`, or enter the key from HA (hex or setup QR text) |
 
 ## Layout
 
@@ -30,7 +30,7 @@ components/sscs_garage/    the external component
   cover/                   cover + state-source select
 tests/                     host test of the token code against a Python reference
 tools/sscs_cli.py          Bleak command-line tool for bench testing from a PC
-docs/                      protocol and history
+docs/                      protocol, Home Assistant setup, history
 ```
 
 ## Deploy
@@ -38,26 +38,28 @@ docs/                      protocol and history
 1. Copy `sscs-atom-s3.yaml` and the `components/` folder into `/config/esphome/` on Home Assistant
    (Samba: `\\homeassistant\config\esphome\`).
 2. Add the keys from `secrets.example.yaml` to `/config/esphome/secrets.yaml`. Reuse the current
-   API key and OTA password so HA keeps the existing device.
-3. In the ESPHome dashboard, **Validate**, then **Install**. Keep the old YAML/header until the new build is proven.
+   API key and OTA password so HA keeps the existing device. `garage_ble_key` is optional if you
+   will enter the key from HA instead (then remove the `key:` line).
+3. Create the `binary_sensor.garage_shutter_state` helper in HA ([docs/home-assistant.md](docs/home-assistant.md)).
+4. In the ESPHome dashboard, **Validate**, then **Install**. Keep the old YAML/header until the new build is proven.
 
 It is the same physical device, so the new YAML replaces `sscs-atom-s3.yaml` there.
 
-## Cover state sources
+## Choosing the state sensor and entering the key
 
-The cover's open/closed state comes from one selectable source:
+Both are done in the Home Assistant UI; see [docs/home-assistant.md](docs/home-assistant.md).
 
-- **Assumed**: whatever the last delivered command implies.
-- **Any binary sensor** listed under `state_sources`: today the Zigbee contact
-  (`binary_sensor.garage_shutter_sensor_contact`, imported with `platform: homeassistant`).
+- **State:** the device reads one HA entity, `binary_sensor.garage_shutter_state`, which you
+  create as a Template binary sensor helper. Its template decides which real sensor counts
+  (Zigbee contact today, a BLE/camera sensor later, or a fallback chain), so changing it needs
+  no firmware rebuild. The **Garage state source** select switches between that and `Assumed`.
+  The cover stays `assumed_state` so HA keeps both buttons enabled, and `travel_time` is how
+  long it shows opening/closing.
+- **Key:** the **Shutter key** box accepts the 64-hex key or the text of the setup QR code
+  (`R1…`). It is stored on the device, never sent back to HA, and identified by a fingerprint
+  in **Shutter key status**. A key entered here wins over one in the YAML.
 
-Pick the active one with the **Garage state source** select in HA; the choice survives reboots.
-To add the planned BLE/camera sensor later, import its HA entity as another
-`binary_sensor` and add it to `state_sources` — no C++ changes.
-
-`open_when` sets polarity (HA door/garage contacts are `ON` when open). A contact at one
-end only says "closed" vs "not closed", so the cover stays `assumed_state` and HA keeps
-both buttons enabled. `travel_time` is how long the cover shows opening/closing.
+Local binary sensors (a reed switch, say) can still be added as extra `state_sources`.
 
 ## Testing
 

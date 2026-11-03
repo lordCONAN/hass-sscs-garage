@@ -1,6 +1,7 @@
 // Host test: the firmware's token code must match the verified Python reference.
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include "../components/sscs_garage/sscs_protocol.h"
 #include "vectors.inc"
@@ -44,6 +45,41 @@ int main() {
   const uint8_t first[20] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x12, 0x10, 0x09, 0x00};
   check(challenge_flags(first) == 0x00091012u, "flags", 0);
 
-  std::printf("%d vectors, %s\n", idx, failures == 0 ? "all passed" : "FAILURES");
+  // Key input: QR text and hex forms.
+  int qr_idx = 0;
+  for (const auto &v : QR_VECTORS) {
+    Key key{};
+    const auto r = parse_key(v.text, std::strlen(v.text), key);
+    check(r == KeyParseResult::KEY_PARSE_RESULT_OK, "qr parse", qr_idx);
+    check(std::memcmp(key.data(), v.key, 32) == 0, "qr key", qr_idx);
+
+    char hex[3 * 32 + 8];
+    size_t n = 0;
+    n += std::snprintf(hex + n, sizeof(hex) - n, "  ");
+    for (int i = 0; i < 32; i++)
+      n += std::snprintf(hex + n, sizeof(hex) - n, i % 4 == 3 ? "%02X:" : "%02x", v.key[i]);
+    Key key2{};
+    check(parse_key(hex, n, key2) == KeyParseResult::KEY_PARSE_RESULT_OK, "hex parse", qr_idx);
+    check(std::memcmp(key2.data(), v.key, 32) == 0, "hex key", qr_idx);
+    qr_idx++;
+  }
+  {
+    Key k{};
+    std::string r2 = std::string("R2") + (QR_VECTORS[0].text + 2);
+    check(parse_key(r2.c_str(), r2.size(), k) == KeyParseResult::KEY_PARSE_RESULT_UNSUPPORTED_SLOT, "R2", 0);
+    std::string share = std::string("0") + QR_VECTORS[0].text;
+    check(parse_key(share.c_str(), share.size(), k) == KeyParseResult::KEY_PARSE_RESULT_SHARE_CODE, "share", 0);
+    std::string bad = std::string(QR_VECTORS[0].text) + "0";  // '0' is not Base58
+    check(parse_key(bad.c_str(), bad.size(), k) == KeyParseResult::KEY_PARSE_RESULT_BAD_FORMAT, "bad b58", 0);
+    std::string extra = std::string(QR_VECTORS[0].text) + "z";  // too long for 32 bytes
+    check(parse_key(extra.c_str(), extra.size(), k) == KeyParseResult::KEY_PARSE_RESULT_BAD_LENGTH, "len", 0);
+    check(parse_key("   ", 3, k) == KeyParseResult::KEY_PARSE_RESULT_EMPTY, "empty", 0);
+    check(parse_key("abc", 3, k) == KeyParseResult::KEY_PARSE_RESULT_BAD_FORMAT, "short", 0);
+    char fp[9];
+    key_fingerprint(k, fp);
+    check(std::strlen(fp) == 8, "fingerprint", 0);
+  }
+
+  std::printf("%d token vectors, %d QR vectors, %s\n", idx, qr_idx, failures == 0 ? "all passed" : "FAILURES");
   return failures == 0 ? 0 : 1;
 }

@@ -53,36 +53,34 @@ ble_client:
 
 sscs_garage:
   ble_client_id: shutter_ble
+  # Optional. 64 hex chars or the QR text from the setup sheet. A key entered in
+  # Home Assistant (Shutter key below) is stored on the device and wins over this.
   key: !secret garage_ble_key
   # passcode: -1          # -1 = no passcode (the only verified mode)
+  key_input:
+    name: Shutter key
+  key_status:
+    name: Shutter key status
   status:
     name: Garage BLE status
 
-# State inputs. Anything that ends up as a binary_sensor can be a state source:
-# an HA entity imported like this, a GPIO reed switch, or a future BLE/camera sensor.
+# Which real sensor decides open/closed is chosen in Home Assistant: make a
+# Template binary sensor helper with this entity ID (see docs/home-assistant.md).
 binary_sensor:
   - platform: homeassistant
-    id: garage_contact_zigbee
-    entity_id: binary_sensor.garage_shutter_sensor_contact
+    id: garage_state_ha
+    entity_id: binary_sensor.garage_shutter_state
     internal: true
-
-  # Future: your BLE + camera "is it open?" sensor, once it exists in HA.
-  # - platform: homeassistant
-  #   id: garage_vision
-  #   entity_id: binary_sensor.garage_shutter_vision
-  #   internal: true
 
 cover:
   - platform: sscs_garage
     name: Garage Shutter
     travel_time: 30s
     state_sources:
-      - name: Zigbee contact
-        sensor: garage_contact_zigbee
+      - name: Home Assistant
+        sensor: garage_state_ha
         open_when: "ON"
-      # - name: Vision
-      #   sensor: garage_vision
-    default_state_source: Zigbee contact
+    default_state_source: Home Assistant
     state_source_select:
       name: Garage state source
 
