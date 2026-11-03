@@ -17,3 +17,6 @@ __pycache__/
 *.pcapng
 *.apk
 *.log
+
+# Python virtual environment (tools/setup-env)
+.venv/
