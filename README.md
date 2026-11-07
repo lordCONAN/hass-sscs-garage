@@ -1,7 +1,15 @@
 # SSCs Garage
 
-ESPHome firmware that drives a Sysdes "SSCs" Smart Garage shutter controller over
-Bluetooth LE, from an M5 Atom S3 Lite, and exposes it to Home Assistant as a cover.
+Controls a Sysdes "SSCs" Smart Garage shutter controller over Bluetooth LE and exposes
+it to Home Assistant as a cover: as a Home Assistant integration (installable with HACS)
+working through an ESPHome Bluetooth proxy, or as ESPHome firmware on an M5 Atom S3 Lite.
+
+> **Coded with [Claude Code](https://claude.com/claude-code).** The code, tests and docs in
+> this repository were written with Claude Code, Anthropic's AI coding agent, at the
+> direction of the repository owner. The BLE protocol comes from earlier reverse-engineering
+> of the shutter ([docs/history/](docs/history/)). Only the no-passcode (`passcode = -1`) path has been
+> verified on real hardware, and the Home Assistant integration is new: try it with the door
+> in view before relying on it.
 
 This is a clean rewrite of the 2025 controller. The protocol is unchanged and
 documented in [docs/protocol.md](docs/protocol.md); the original reverse-engineering
