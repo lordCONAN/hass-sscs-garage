@@ -58,12 +58,29 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "door": {
+        "name": "Door"
+      }
+    },
+    "select": {
+      "state_source": {
+        "name": "State source",
+        "state": {
+          "assumed": "Assumed",
+          "sensor": "State sensor"
+        }
+      }
+    },
     "sensor": {
       "ble_status": {
         "name": "BLE status"
       },
       "key_fingerprint": {
         "name": "Key fingerprint"
+      },
+      "active_state_source": {
+        "name": "Active state source"
       }
     }
   }

@@ -16,7 +16,8 @@ class SSCSEntity(Entity):
     _attr_should_poll = False
 
     def __init__(self, entry: SSCSConfigEntry, key: str) -> None:
-        self.client = entry.runtime_data
+        self.client = entry.runtime_data.client
+        self.source = entry.runtime_data.source
         address = self.client.address
         self._attr_unique_id = f"{address}-{key}"
         self._attr_device_info = DeviceInfo(

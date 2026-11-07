@@ -20,13 +20,17 @@ controller **received** the command, not that the door finished moving.
 | Entity | What it is |
 | --- | --- |
 | **Garage Shutter** (cover, `cover.garage_shutter`) | Open / close / stop. Always `assumed_state`, so both buttons stay enabled. |
+| **Door** (binary sensor, garage door) | Open/closed as the state sensor reports it, whatever the select says. Unknown without a state sensor or while it reports nothing. |
+| **State source** (select, config) | `Assumed` or `State sensor`: what the cover follows. Only present when a state sensor is set; remembered across restarts. |
+| **Active state source** (diagnostic) | What the cover is following now: the sensor's name, `Assumed`, or `Assumed (sensor unavailable)`. |
 | **BLE status** (diagnostic) | `Connecting`, `Authenticating`, `Sending`, then the result, e.g. `up: acknowledged`, `down: shutter not found`. |
 | **Key fingerprint** (diagnostic) | First 4 bytes of SHA-256 of the key: the same fingerprint the ESPHome firmware showed in **Shutter key status**. |
 
 Entity IDs follow the name you give the shutter during setup (default **Garage Shutter**).
 
-Open/closed comes from the **state sensor** chosen in the options (optional). While it is
-unset, unknown or unavailable, the state is assumed from the last command. If a command
+Open/closed comes from the **state sensor** chosen in the options (optional), while the
+**State source** select is on `State sensor` (the default). On `Assumed`, or while the sensor
+is unknown or unavailable, the state is assumed from the last command. If a command
 never reached the shutter (not found, no challenge, write rejected, disconnected early), an
 assumed opening/closing is undone. **Travel time** (default 30 s) is how long the cover
 shows opening/closing.

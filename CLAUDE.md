@@ -29,8 +29,11 @@ Protocol facts are in `docs/protocol.md`; only the `passcode = -1` path is verif
 - Config flow: Bluetooth discovery or a list of nearby SSCs devices → key step (hex or R1/MS QR
   text). unique_id = BLE address. Key in entry data as hex; only the fingerprint is ever shown.
   Options: state binary_sensor (optional), `open_when` on/off, travel time.
-- `cover.py`: assumed_state cover; state from the sensor, else assumed; reverts an assumed
-  move whose command was never delivered. `sensor.py`: BLE status, key fingerprint.
+- `source.py` (`StateSource`, in `entry.runtime_data.source` beside `.client`): tracks the state
+  sensor and the Assumed/State sensor mode; the cover, Door binary sensor, State source select
+  (only with a sensor; RestoreEntity) and Active state source sensor all listen to it.
+- `cover.py`: assumed_state cover; follows `effective_open()`, else assumed; reverts an assumed
+  move whose command was never delivered. `sensor.py`: BLE status, key fingerprint, active source.
 
 ## Design — ESPHome component
 

@@ -57,7 +57,7 @@ async def call(hass: HomeAssistant, service: str) -> None:
 
 
 def report(entry: MockConfigEntry, cmd: Command, result: Result) -> None:
-    client: SSCSClient = entry.runtime_data
+    client: SSCSClient = entry.runtime_data.client
     for listener in list(client._result_listeners):
         listener(cmd, result)
 
@@ -158,7 +158,7 @@ async def test_state_sensor_inverted_and_unavailable(hass: HomeAssistant, send: 
 
 async def test_status_sensor_follows_client(hass: HomeAssistant, send: MagicMock) -> None:
     entry = await setup(hass)
-    client: SSCSClient = entry.runtime_data
+    client: SSCSClient = entry.runtime_data.client
     client._set_status("Connecting")
     await hass.async_block_till_done()
     assert hass.states.get(STATUS).state == "Connecting"

@@ -1,4 +1,4 @@
-"""Diagnostic sensors: last command result and key fingerprint."""
+"""Diagnostic sensors: last command result, key fingerprint, state source in use."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .entity import SSCSEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: SSCSConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
-    async_add_entities([SSCSStatusSensor(entry), SSCSFingerprintSensor(entry)])
+    async_add_entities([SSCSStatusSensor(entry), SSCSFingerprintSensor(entry), SSCSSourceSensor(entry)])
 
 
 class SSCSStatusSensor(SSCSEntity, SensorEntity):
@@ -49,3 +49,25 @@ class SSCSFingerprintSensor(SSCSEntity, SensorEntity):
     def __init__(self, entry: SSCSConfigEntry) -> None:
         super().__init__(entry, "key_fingerprint")
         self._attr_native_value = self.client.fingerprint
+
+
+class SSCSSourceSensor(SSCSEntity, SensorEntity):
+    """Where the cover's open/closed comes from: the sensor's name, or Assumed."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "active_state_source"
+    _attr_icon = "mdi:source-branch"
+
+    def __init__(self, entry: SSCSConfigEntry) -> None:
+        super().__init__(entry, "active_state_source")
+
+    @property
+    def native_value(self) -> str:
+        return self.source.description()
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self.source.add_listener(self._on_source))
+
+    @callback
+    def _on_source(self) -> None:
+        self.async_write_ha_state()
