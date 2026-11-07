@@ -20,3 +20,4 @@ __pycache__/
 
 # Python virtual environment (tools/setup-env)
 .venv/
+.venv-ha/
