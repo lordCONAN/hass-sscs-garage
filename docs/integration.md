@@ -37,9 +37,16 @@ use the fingerprint to tell keys apart.
 
 ## Install
 
-1. Copy `custom_components/sscs_garage/` to `/config/custom_components/sscs_garage/` on Home
-   Assistant (Samba: `\\homeassistant\config\custom_components\`).
-2. Restart Home Assistant.
+With [HACS](https://hacs.xyz):
+
+1. HACS → ⋮ → **Custom repositories** → repository
+   `https://github.com/lordCONAN/hass-sscs-garage`, type **Integration** → **Add**.
+2. Open **SSCs Garage Shutter** in HACS → **Download**.
+3. Restart Home Assistant.
+
+HACS installs only `custom_components/sscs_garage/` and offers updates when the repository
+changes. Without HACS, copy that folder to `/config/custom_components/sscs_garage/` (Samba:
+`\\homeassistant\config\custom_components\`) and restart.
 
 It needs no extra Python packages: it uses HA's own Bluetooth stack (`bleak`,
 `bleak-retry-connector`).

@@ -5,11 +5,13 @@
     { "local_name": "SSCs*", "connectable": true },
     { "local_name": "SSCg*", "connectable": true }
   ],
-  "codeowners": [],
+  "codeowners": ["@lordCONAN"],
   "config_flow": true,
   "dependencies": ["bluetooth_adapters"],
+  "documentation": "https://github.com/lordCONAN/hass-sscs-garage/blob/main/docs/integration.md",
   "integration_type": "device",
   "iot_class": "assumed_state",
+  "issue_tracker": "https://github.com/lordCONAN/hass-sscs-garage/issues",
   "requirements": [],
   "version": "0.1.0"
 }
