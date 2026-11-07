@@ -1,0 +1,15 @@
+{
+  "domain": "sscs_garage",
+  "name": "SSCs Garage Shutter",
+  "bluetooth": [
+    { "local_name": "SSCs*", "connectable": true },
+    { "local_name": "SSCg*", "connectable": true }
+  ],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "integration_type": "device",
+  "iot_class": "assumed_state",
+  "requirements": [],
+  "version": "0.1.0"
+}

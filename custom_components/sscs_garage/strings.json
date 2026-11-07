@@ -1,0 +1,70 @@
+{
+  "config": {
+    "flow_title": "{name} ({address})",
+    "step": {
+      "user": {
+        "title": "Choose the shutter",
+        "description": "SSCs shutters heard by Home Assistant's Bluetooth adapters and proxies. The strongest signal is usually yours.",
+        "data": {
+          "address": "Shutter"
+        }
+      },
+      "key": {
+        "title": "Shutter key",
+        "description": "Shutter {name} ({address}).\n\nEnter the 64-character hex key, or the text of the setup QR code from the sheet that came with the shutter (it starts with R1). The key is stored in Home Assistant and never shown again; the Key fingerprint sensor identifies it.",
+        "data": {
+          "key": "Key or setup QR text",
+          "name": "Name"
+        }
+      }
+    },
+    "error": {
+      "key_empty": "Enter the key.",
+      "key_bad_format": "Not 64 hex characters or a setup QR code.",
+      "key_bad_length": "The QR code did not contain a 32-byte key.",
+      "key_unsupported_slot": "QR codes for remote slots 2-4 (R2-R4) are not supported yet. Use the R1 code.",
+      "key_share_code": "Shared (encrypted) QR codes from another phone are not supported. Use the setup sheet's R1 code."
+    },
+    "abort": {
+      "already_configured": "This shutter is already configured.",
+      "already_in_progress": "Setup for this shutter is already in progress.",
+      "no_devices_found": "No SSCs shutter heard. Check that a Bluetooth adapter or proxy is in range and the phone app is closed.",
+      "not_supported": "This device is not an SSCs shutter."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Shutter options",
+        "description": "Key fingerprint: {fingerprint}.\n\nWithout a state sensor, or while it is unknown, open/closed is assumed from the last command.",
+        "data": {
+          "state_sensor": "State sensor",
+          "open_when": "Sensor state meaning open",
+          "travel_time": "Travel time"
+        },
+        "data_description": {
+          "state_sensor": "Binary sensor that tells open from closed, such as a contact at the bottom.",
+          "travel_time": "How long the cover shows opening or closing."
+        }
+      }
+    }
+  },
+  "selector": {
+    "open_when": {
+      "options": {
+        "on": "On",
+        "off": "Off"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ble_status": {
+        "name": "BLE status"
+      },
+      "key_fingerprint": {
+        "name": "Key fingerprint"
+      }
+    }
+  }
+}
