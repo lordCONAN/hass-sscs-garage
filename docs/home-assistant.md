@@ -1,5 +1,9 @@
 # Home Assistant setup
 
+This page is for the ESPHome component (`sscs-atom-s3.yaml`). With the Home Assistant
+integration instead, see [integration.md](integration.md); the
+`binary_sensor.garage_shutter_state` helper below works as its state sensor too.
+
 Everything here is done in the Home Assistant UI; nothing needs a firmware rebuild.
 
 ## Entities the device creates

@@ -1,8 +1,14 @@
 # SSCs Garage — context for Claude Code
 
-ESPHome external component (`components/sscs_garage`) that controls a Sysdes SSCs
-garage shutter over BLE from an M5 Atom S3 Lite (ESP32-S3, ESP-IDF). Protocol facts
-are in `docs/protocol.md`; only the `passcode = -1` path is verified on hardware.
+Controls a Sysdes SSCs garage shutter over BLE. Two implementations of the same protocol:
+
+- **Home Assistant integration** (`custom_components/sscs_garage`, domain `sscs_garage`): runs in
+  HA; the M5 Atom S3 Lite is a plain ESPHome Bluetooth proxy (`proxy/atom-s3-proxy.yaml`).
+  Install/switch-over/rollback: `docs/integration.md`.
+- **ESPHome external component** (`components/sscs_garage`, `sscs-atom-s3.yaml`): runs on the
+  Atom S3 (ESP32-S3, ESP-IDF). Kept as the fallback; don't delete it.
+
+Protocol facts are in `docs/protocol.md`; only the `passcode = -1` path is verified on hardware.
 
 ## Rules
 
@@ -11,7 +17,22 @@ are in `docs/protocol.md`; only the `passcode = -1` path is verified on hardware
   the user asking. It is a garage door.
 - `cc 00` means "command received", not "door finished moving".
 
-## Design
+## Design — integration
+
+- `protocol.py`: pure Python port of `sscs_protocol.*` (no HA imports). Keep the two in step;
+  both are tested against the vectors from `tests/reference.py`.
+- `client.py` (`SSCSClient`): one session per command, same flow and timings as the component,
+  via `bluetooth.async_ble_device_from_address(connectable=True)` + `establish_connection`.
+  `send()` returns at once; results go to listeners. Sessions run under an asyncio lock; a newer
+  command replaces one not yet written (`_written` is set before the "Sending" status, whose
+  listeners may call `send()`), one arriving after the write runs next.
+- Config flow: Bluetooth discovery or a list of nearby SSCs devices → key step (hex or R1/MS QR
+  text). unique_id = BLE address. Key in entry data as hex; only the fingerprint is ever shown.
+  Options: state binary_sensor (optional), `open_when` on/off, travel time.
+- `cover.py`: assumed_state cover; state from the sensor, else assumed; reverts an assumed
+  move whose command was never delivered. `sensor.py`: BLE status, key fingerprint.
+
+## Design — ESPHome component
 
 - `sscs_protocol.*`: pure functions, no ESPHome deps; host-tested in `tests/`.
 - `sscs_garage.*`: its own `esp32_ble_client::BLEClientBase` (no `ble_client:` block, no MAC
@@ -26,5 +47,10 @@ are in `docs/protocol.md`; only the `passcode = -1` path is verified on hardware
 
 ## Commands
 
-- `make -C tests` — token test vs `tests/reference.py`.
-- Firmware is built with the ESPHome dashboard on Home Assistant (target ESPHome 2026.10.x).
+- `make -C tests` — C++ token test vs `tests/reference.py`.
+- `wsl bash tools/test-ha.sh` — integration tests (`tests/ha`). HA doesn't run on Windows and
+  2026.10 needs Python ≥ 3.14.2, so they run in WSL (`~/venvs/sscs-garage-ha`, made by the script
+  with uv). Run WSL commands from a script file: PowerShell expands `$VARS` in inline `bash -c`.
+- Firmware is built with the ESPHome dashboard on Home Assistant (target ESPHome 2026.10.x), or
+  locally with `.\.venv\Scripts\esphome` from PowerShell (not Git Bash: ESP-IDF rejects MSYS).
+- Validate `proxy/atom-s3-proxy.yaml` with `esphome config` only, against placeholder secrets.

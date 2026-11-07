@@ -7,6 +7,14 @@ This is a clean rewrite of the 2025 controller. The protocol is unchanged and
 documented in [docs/protocol.md](docs/protocol.md); the original reverse-engineering
 notes are in [docs/history/](docs/history/).
 
+There are two ways to run it:
+
+- **Home Assistant integration** (`custom_components/sscs_garage`): the protocol runs in HA and
+  the Atom S3 is a plain ESPHome Bluetooth proxy (`proxy/atom-s3-proxy.yaml`). See
+  [docs/integration.md](docs/integration.md) for install, switch-over and rollback.
+- **ESPHome component** (`components/sscs_garage`, `sscs-atom-s3.yaml`): the protocol runs on
+  the Atom S3. Kept as the fallback; the rest of this README describes it.
+
 ## What changed from the old firmware
 
 | Old (`sscs_garage_s3.h`) | New (`components/sscs_garage`) |
@@ -23,18 +31,25 @@ notes are in [docs/history/](docs/history/).
 ## Layout
 
 ```
-sscs-atom-s3.yaml          device config (copy to /config/esphome/)
-secrets.example.yaml       keys the YAML expects
-components/sscs_garage/    the external component
-  sscs_protocol.*          pure protocol code (unit-tested on PC)
-  sscs_garage.*            BLE session hub
-  cover/                   cover + state-source select
-tests/                     host test of the token code against a Python reference
-tools/sscs_cli.py          Bleak command-line tool for bench testing from a PC
-docs/                      protocol, Home Assistant setup, history
+custom_components/sscs_garage/   Home Assistant integration
+  protocol.py                    pure protocol code (port of sscs_protocol.*)
+  client.py                      BLE session (one per command)
+  config_flow.py, cover.py, sensor.py
+proxy/atom-s3-proxy.yaml         plain Bluetooth proxy for the Atom S3 (with the integration)
+sscs-atom-s3.yaml                ESPHome component device config (copy to /config/esphome/)
+secrets.example.yaml             keys the YAMLs expect
+components/sscs_garage/          the ESPHome external component
+  sscs_protocol.*                pure protocol code (unit-tested on PC)
+  sscs_garage.*                  BLE session hub
+  cover/                         cover + state-source select
+tests/                           host test of the token code against a Python reference
+tests/ha/                        integration tests (pytest, Linux/WSL)
+tools/sscs_cli.py                Bleak command-line tool for bench testing from a PC
+tools/test-ha.sh                 runs tests/ha in WSL/Linux with Python 3.14
+docs/                            protocol, integration, Home Assistant setup, history
 ```
 
-## Deploy
+## Deploy (ESPHome component)
 
 1. Copy `sscs-atom-s3.yaml` and the `components/` folder into `/config/esphome/` on Home Assistant
    (Samba: `\\homeassistant\config\esphome\`).
@@ -68,8 +83,12 @@ Local binary sensors (a reed switch, say) can still be added as extra `state_sou
 ## Testing
 
 ```
-make -C tests          # token code vs Python reference (needs g++ and OpenSSL headers)
+make -C tests             # C++ token code vs Python reference (needs g++ and OpenSSL headers)
+wsl bash tools/test-ha.sh # integration: protocol.py vs the same vectors, session, flows, cover
 ```
+
+Home Assistant doesn't run on Windows, so the integration tests run in WSL or on Linux
+(Python 3.14, which HA 2026.10 needs); see [docs/integration.md](docs/integration.md#testing).
 
 `tools/sscs_cli.py` sends one command from a PC (`pip install bleak`, key in `SSCS_KEY`).
 It moves a real door: only run it when you can see the shutter.
