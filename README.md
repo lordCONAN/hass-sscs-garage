@@ -105,3 +105,7 @@ It moves a real door: only run it when you can see the shutter.
 
 This operates a garage door. Don't run commands, flash firmware, or change config
 unattended, and treat `cc 00` as "received", not "finished moving".
+
+## License
+
+[MIT](LICENSE). Not affiliated with or endorsed by Sysdes.
