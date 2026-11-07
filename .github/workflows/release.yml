@@ -1,0 +1,29 @@
+# Push a tag like v0.2.0 to publish a GitHub release; HACS shows the release's tag as
+# the version. The tag must match "version" in the integration's manifest.json.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches manifest.json
+        run: |
+          manifest=$(jq -r .version custom_components/sscs_garage/manifest.json)
+          if [ "v$manifest" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME but manifest.json says $manifest"
+            exit 1
+          fi
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

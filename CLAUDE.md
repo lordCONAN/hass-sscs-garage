@@ -56,4 +56,6 @@ Protocol facts are in `docs/protocol.md`; only the `passcode = -1` path is verif
   with uv). Run WSL commands from a script file: PowerShell expands `$VARS` in inline `bash -c`.
 - Firmware is built with the ESPHome dashboard on Home Assistant (target ESPHome 2026.10.x), or
   locally with `.\.venv\Scripts\esphome` from PowerShell (not Git Bash: ESP-IDF rejects MSYS).
+- Release: bump `version` in the integration's `manifest.json`, commit, push tag `vX.Y.Z`;
+  `.github/workflows/release.yml` publishes the GitHub release HACS reads. Only when asked.
 - Validate `proxy/atom-s3-proxy.yaml` with `esphome config` only, against placeholder secrets.

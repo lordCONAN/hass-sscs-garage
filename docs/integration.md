@@ -48,8 +48,8 @@ With [HACS](https://hacs.xyz):
 2. Open **SSCs Garage Shutter** in HACS → **Download**.
 3. Restart Home Assistant.
 
-HACS installs only `custom_components/sscs_garage/` and offers updates when the repository
-changes. Without HACS, copy that folder to `/config/custom_components/sscs_garage/` (Samba:
+HACS installs only `custom_components/sscs_garage/` and offers an update when a new
+release is published (see [Releasing](#releasing)). Without HACS, copy that folder to `/config/custom_components/sscs_garage/` (Samba:
 `\\homeassistant\config\custom_components\`) and restart.
 
 It needs no extra Python packages: it uses HA's own Bluetooth stack (`bleak`,
@@ -125,3 +125,14 @@ component requirements. Tests in `tests/ha/`:
   session at a time, no key in the logs).
 - `test_config_flow.py`, `test_cover.py`: discovery and manual setup, key errors, options,
   cover state from the sensor or assumed, revert on failure.
+
+## Releasing
+
+Versions are `MAJOR.MINOR.PATCH` ([semver](https://semver.org)); HACS shows the latest GitHub
+release's tag. To release:
+
+1. Set `"version"` in `custom_components/sscs_garage/manifest.json` (e.g. `0.2.0`) and commit.
+2. `git tag v0.2.0 && git push origin main v0.2.0`.
+
+The **Release** workflow (`.github/workflows/release.yml`) checks the tag matches the manifest
+and publishes the release with notes generated from the commits.
