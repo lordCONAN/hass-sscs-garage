@@ -98,13 +98,27 @@ wsl bash tools/test-ha.sh # integration: protocol.py vs the same vectors, sessio
 Home Assistant doesn't run on Windows, so the integration tests run in WSL or on Linux
 (Python 3.14, which HA 2026.10 needs); see [docs/integration.md](docs/integration.md#testing).
 
-`tools/sscs_cli.py` sends one command from a PC (`pip install bleak`, key in `SSCS_KEY`).
+`tools/sscs_cli.py` sends one command from a PC (`pip install bleak`; it asks for the key
+without echo, or reads `SSCS_KEY`).
 It moves a real door: only run it when you can see the shutter.
 
 ## Safety
 
 This operates a garage door. Don't run commands, flash firmware, or change config
 unattended, and treat `cc 00` as "received", not "finished moving".
+
+## Keeping secrets out of the repo
+
+Nothing device-specific belongs in this repository: no shutter key, Wi-Fi or API values, and
+no real shutter address (examples use `AA:BB:CC:DD:EE:FF`; every setup path finds or asks for
+the address). Real values go in `secrets.yaml` (git-ignored; start from
+[secrets.example.yaml](secrets.example.yaml)) or in Home Assistant. `.gitignore` also covers
+firmware images, captures, logs, key files and HA `.storage`, and every push is checked by
+gitleaks (`.github/workflows/secret-scan.yml`).
+
+The shutter key alone controls the door: anyone with it and Bluetooth range can open it. It is
+never logged or shown (only a 4-byte fingerprint). Whether the controller can be given a new
+key hasn't been checked, so treat it like a physical key that can't be re-cut.
 
 ## License
 

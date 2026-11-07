@@ -13,6 +13,8 @@ Protocol facts are in `docs/protocol.md`; only the `passcode = -1` path is verif
 ## Rules
 
 - Never print, log or commit the 32-byte BLE key, API key, OTA/Wi-Fi passwords, or derived tokens.
+- No real device addresses, IPs, SSIDs or host details in the repo: examples use
+  `AA:BB:CC:DD:EE:FF`. Real values live in `secrets.yaml`/HA only; gitleaks runs on every push.
 - Don't flash firmware, send commands to the shutter, or change Home Assistant config without
   the user asking. It is a garage door.
 - `cc 00` means "command received", not "door finished moving".

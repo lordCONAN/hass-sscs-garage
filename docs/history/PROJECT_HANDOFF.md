@@ -19,7 +19,7 @@ The ESP32 communicates directly with the shutter over BLE and exposes an ESPHome
 | Component | Recorded details |
 | --- | --- |
 | Garage peripheral | Sysdes Smart Garage; advertisement name/prefix `SSCs` |
-| Observed BLE address | `AA:BB:CC:DD:EE:FF` (historical observation, not a guarantee of permanence) |
+| Observed BLE address | (redacted; differs per unit) |
 | ESP controller | M5 Atom S3 Lite (ESP32-S3) |
 | Firmware | ESPHome, Arduino ESP32 framework |
 | BLE library | NimBLE-Arduino 1.x (`^1.4.2` in historical YAML) |

@@ -17,7 +17,7 @@ from esphome.components.esp32_ble import BTLoggers
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_MAC_ADDRESS, CONF_STATUS
 
-CODEOWNERS = ["@anthony"]
+CODEOWNERS = ["@lordCONAN"]
 DEPENDENCIES = ["esp32_ble_tracker"]
 AUTO_LOAD = ["esp32_ble_client", "button", "switch", "text", "text_sensor"]
 MULTI_CONF = True

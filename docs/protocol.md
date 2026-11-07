@@ -10,7 +10,7 @@ decompiling the app, Frida hooks, HCI captures, and working hardware tests
 | Item | Value |
 | --- | --- |
 | Advertised name | starts with `SSCs` (some units `SSCg`) |
-| Observed address | `AA:BB:CC:DD:EE:FF` (stable 2023–2025, not guaranteed) |
+| Address | Differs per unit; read it from the setup list or HA's Bluetooth page. One unit kept the same address for years, but that isn't guaranteed. |
 | Pairing / encryption | none |
 | Concurrent connections | one; close the phone app while testing |
 

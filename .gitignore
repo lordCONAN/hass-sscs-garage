@@ -1,23 +1,54 @@
-# Secrets
+# Secrets: ESPHome secrets (any folder, any variant except the example), keys, env files.
 secrets.yaml
+secrets*.yaml
+!secrets.example.yaml
 *.secret
+*.key
+*.pem
+key.txt
+*_key.txt
+keys/
 .env
+.env.*
 
-# ESPHome / PlatformIO build output
+# Local copies of configs with real values
+*.local.yaml
+*.local.yml
+*.private.*
+
+# Home Assistant state and downloads (config entries hold the shutter key)
+.storage/
+core.config_entries
+config_entry-*.json
+home-assistant*.log
+
+# ESPHome / PlatformIO build output and firmware images (they embed the key and Wi-Fi)
 .esphome/
 .pioenvs/
 .piolibdeps/
+*.bin
+*.elf
+*.uf2
 
 # Tests and tools
 tests/build/
 __pycache__/
 *.pyc
+.pytest_cache/
 
-# Captures and reverse-engineering material stay outside the repo
+# Captures, logs and reverse-engineering material stay outside the repo
+*.pcap
 *.pcapng
-*.apk
+*.cap
+*.btsnoop
+btsnoop_hci*
+*.cfa
 *.log
+*.apk
+*.xapk
+captures/
+dumps/
 
-# Python virtual environment (tools/setup-env)
+# Python virtual environments (tools/setup-env, WSL test venv)
 .venv/
 .venv-ha/

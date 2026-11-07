@@ -1,8 +1,11 @@
 """Send one command to the SSCs garage controller from a PC (bench testing).
 
     pip install bleak
-    set SSCS_KEY=<64 hex chars>        (PowerShell: $env:SSCS_KEY="...")
     python sscs_cli.py stop [--address AA:BB:CC:DD:EE:FF]
+
+The key (64 hex chars) is asked for without echo. To script it, set SSCS_KEY
+instead, but a key typed on a command line ends up in the shell history.
+Without --address (or SSCS_ADDRESS) the first "SSCs" device heard is used.
 
 This moves a real door. Only run it where you can see the shutter, with the
 phone app closed (the controller accepts one connection). Disconnect the ESP32
@@ -11,6 +14,7 @@ too, or it may be connected at the same moment.
 
 import argparse
 import asyncio
+import getpass
 from hashlib import sha256
 import os
 import sys
@@ -93,13 +97,16 @@ def main() -> int:
     parser.add_argument("--address", default=os.environ.get("SSCS_ADDRESS"))
     args = parser.parse_args()
 
-    key_hex = os.environ.get("SSCS_KEY", "").replace(" ", "").replace(":", "")
+    key_hex = os.environ.get("SSCS_KEY", "")
+    if not key_hex and sys.stdin.isatty():
+        key_hex = getpass.getpass("Shutter key (64 hex chars, hidden): ")
+    key_hex = key_hex.strip().replace(" ", "").replace(":", "")
     try:
         key = bytes.fromhex(key_hex)
     except ValueError:
         key = b""
     if len(key) != 32:
-        print("Set SSCS_KEY to the 64-hex-character shutter key.")
+        print("The key must be 64 hex characters (enter it at the prompt or set SSCS_KEY).")
         return 64
     return asyncio.run(run(args.command, args.address, key))
 

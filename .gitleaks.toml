@@ -1,0 +1,7 @@
+# gitleaks config: the default rules, minus files that hold only placeholders.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder values, not secrets"
+paths = ['''^secrets\.example\.yaml$''']
