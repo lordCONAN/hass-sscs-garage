@@ -1,0 +1,49 @@
+# Plain ESPHome Bluetooth proxy — M5 Atom S3 Lite (ESP32-S3)
+#
+# Replaces sscs-atom-s3.yaml once the sscs_garage Home Assistant integration
+# (custom_components/sscs_garage) talks to the shutter; see docs/integration.md.
+# No external components: the shutter protocol lives in Home Assistant.
+#
+# Deploy: copy this file into /config/esphome/ on Home Assistant and add the
+# ble_proxy_* keys from secrets.example.yaml to secrets.yaml there.
+
+esphome:
+  name: atom-s3-ble-proxy
+  friendly_name: Atom S3 BLE Proxy
+  comment: Bluetooth proxy for the SSCs garage shutter
+
+esp32:
+  board: esp32-s3-devkitc-1
+  # Atom S3 Lite: ESP32-S3FN8, 8 MB flash (same partition table as sscs-atom-s3.yaml).
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+
+api:
+  encryption:
+    key: !secret ble_proxy_api_key
+
+ota:
+  - platform: esphome
+    password: !secret ble_proxy_ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: Atom S3 BLE Proxy Fallback
+    password: !secret ble_proxy_fallback_ap_password
+
+captive_portal:
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+# active: true lets Home Assistant connect through the proxy (the shutter needs
+# a GATT connection, not just advertisements).
+bluetooth_proxy:
+  active: true
